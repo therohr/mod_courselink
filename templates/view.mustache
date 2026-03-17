@@ -1,0 +1,55 @@
+{{!
+    Template: mod_courselink/view
+
+    Renders the linked course card shown to a student when they open a
+    courselink activity. Displays the target course name, a link to it,
+    an enrolment warning when applicable, and the student's completion status.
+
+    @package   mod_courselink
+    @copyright 2026 Your Name <you@example.com>
+    @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+}}
+<div class="mod-courselink">
+
+    {{#hasintro}}
+    <div class="mod-courselink__intro">
+        {{{intro}}}
+    </div>
+    {{/hasintro}}
+
+    {{#targetmissing}}
+    <div class="alert alert-danger" role="alert">
+        {{targetmissingmsg}}
+    </div>
+    {{/targetmissing}}
+
+    {{^targetmissing}}
+    <div class="card mod-courselink__card">
+        <div class="card-body">
+
+            <h3 class="card-title mod-courselink__target-name">
+                {{targetname}}
+            </h3>
+
+            {{^isenrolled}}
+            <div class="alert alert-info" role="alert">
+                {{notenrolledmsg}}
+            </div>
+            {{/isenrolled}}
+
+            <div class="mod-courselink__status mb-3">
+                <strong>{{completionstatus}}:</strong>
+                <span class="badge badge-{{statusclass}} ml-1">
+                    {{statuslabel}}
+                </span>
+            </div>
+
+            <a href="{{targeturl}}" class="btn btn-primary mod-courselink__goto">
+                {{gotocoursestr}}
+            </a>
+
+        </div>
+    </div>
+    {{/targetmissing}}
+
+</div>
