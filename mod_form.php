@@ -18,7 +18,7 @@
  * Activity settings form for mod_courselink.
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -31,8 +31,15 @@ require_once($CFG->dirroot . '/course/moodleform_mod.php');
  *
  * Teachers configure which course to link to and whether completion of that
  * course is required before this activity is marked complete.
+ *
+ * The course list is capped at 500 results to prevent memory exhaustion on
+ * large Workplace tenants. On sites with more than 500 courses, replace the
+ * autocomplete element with an AJAX datasource backed by
+ * core_course_category::search_courses().
  */
 class mod_courselink_mod_form extends moodleform_mod {
+    /** Maximum number of courses to load into the target-course selector. */
+    const MAX_COURSE_LIST = 500;
 
     /**
      * Build the form definition.
@@ -44,9 +51,7 @@ class mod_courselink_mod_form extends moodleform_mod {
 
         $mform = $this->_form;
 
-        // ---------------------------------------------------------------
         // Standard: name + intro.
-        // ---------------------------------------------------------------
         $mform->addElement('text', 'name', get_string('name'), ['size' => '64']);
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
@@ -54,16 +59,20 @@ class mod_courselink_mod_form extends moodleform_mod {
 
         $this->standard_intro_elements();
 
-        // ---------------------------------------------------------------
         // Target course selector.
-        // ---------------------------------------------------------------
         $mform->addElement('header', 'courselinksettings', get_string('pluginname', 'mod_courselink'));
 
-        // Build a select list of all site courses except the current one.
-        $courses    = get_courses('all', 'c.fullname ASC', 'c.id, c.fullname, c.shortname');
+        // Build the course list using core_course_category::search_courses(), which
+        // Workplace overrides to add tenant isolation. The list is capped at
+        // MAX_COURSE_LIST to prevent memory exhaustion on large tenants.
+        $courselist = core_course_category::search_courses(
+            ['search' => ''],
+            ['offset' => 0, 'limit' => self::MAX_COURSE_LIST, 'sort' => ['fullname' => 1]]
+        );
+
         $courseopts = [];
-        foreach ($courses as $c) {
-            if ($c->id == $this->current->course) {
+        foreach ($courselist as $c) {
+            if ((int) $c->id === (int) $this->current->course) {
                 // Exclude the host course — linking to itself is meaningless.
                 continue;
             }
@@ -80,7 +89,22 @@ class mod_courselink_mod_form extends moodleform_mod {
         $mform->addRule('targetcourseid', get_string('nocourseselected', 'mod_courselink'), 'required', null, 'client');
         $mform->setType('targetcourseid', PARAM_INT);
 
-        // Completion tracking toggle.
+        // Standard: grading + completion tabs added by parent.
+        $this->standard_coursemodule_elements();
+        $this->add_action_buttons();
+    }
+
+    /**
+     * Add completion-rule elements to the completion settings tab.
+     *
+     * Called by the parent form when building the completion tab. Elements added
+     * here are shown only when the teacher selects automatic completion tracking.
+     *
+     * @return array Element names that are completion rules.
+     */
+    public function add_completion_rules(): array {
+        $mform = $this->_form;
+
         $mform->addElement(
             'advcheckbox',
             'completiontracking',
@@ -92,24 +116,6 @@ class mod_courselink_mod_form extends moodleform_mod {
         $mform->addHelpButton('completiontracking', 'completiontracking', 'mod_courselink');
         $mform->setDefault('completiontracking', 1);
 
-        // ---------------------------------------------------------------
-        // Standard: grading + completion tabs added by parent.
-        // ---------------------------------------------------------------
-        $this->standard_coursemodule_elements();
-        $this->add_action_buttons();
-    }
-
-    /**
-     * Add completion-rule elements to the completion settings tab.
-     *
-     * Called by the parent form when building the completion tab.
-     *
-     * @return array Element names that are completion rules.
-     */
-    public function add_completion_rules(): array {
-        // The completiontracking field is the sole custom rule.
-        // It is defined in definition() so no additional elements are needed here;
-        // we just declare its name so Moodle knows to show it in the completion tab.
         return ['completiontracking'];
     }
 
@@ -121,7 +127,7 @@ class mod_courselink_mod_form extends moodleform_mod {
      * @param  array $data Form data.
      * @return bool        True when at least one custom rule is active.
      */
-    public function completion_rule_enabled(array $data): bool {
+    public function completion_rule_enabled($data): bool {
         return !empty($data['completiontracking']);
     }
 

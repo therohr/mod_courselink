@@ -16,66 +16,105 @@
 
 namespace mod_courselink;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Event observer for mod_courselink.
  *
- * Listens for \core\event\course_completed. When fired, finds every
- * courselink activity whose targetcourseid matches the just-completed
- * course and re-evaluates the activity completion state for that user.
- * This provides real-time gating without relying on cron lag.
+ * Each observer method extracts the minimum required data from the event and
+ * queues an ad hoc task, then returns immediately. No modinfo lookups, no
+ * completion writes, and no DB-heavy work are performed inside the observer —
+ * all of that runs in the ad hoc task outside the originating HTTP request.
+ *
+ * This pattern prevents the observer from adding latency to the user's request
+ * (which previously caused a 503 timeout when course completion fired during
+ * a manual activity completion click).
+ *
+ * Three events are observed:
+ *  - \core\event\course_completed        → queue sync_user_completion (promote)
+ *  - \core\event\course_completion_updated → queue sync_user_completion (demote)
+ *  - \core\event\course_reset_ended      → queue sync_course_reset (bulk demote)
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class observer {
-
     /**
      * Handle the course_completed event.
      *
-     * Iterates over all courselink instances that reference the completed
-     * course and triggers a completion re-check for the affected user.
+     * Queues an ad hoc task to promote the affected user's courselink activity
+     * completion state. Returns immediately so the originating HTTP request is
+     * not blocked.
      *
      * @param  \core\event\course_completed $event The fired event.
      * @return void
      */
     public static function course_completed(\core\event\course_completed $event): void {
-        global $DB;
+        $userid         = (int) $event->relateduserid;
+        $targetcourseid = (int) $event->courseid;
 
-        $completedcourseid = (int) $event->courseid;
-        $userid            = (int) $event->relateduserid;
-
-        if (!$completedcourseid || !$userid) {
+        if (!$userid || !$targetcourseid) {
             return;
         }
 
-        // Find all courselink instances that track the completed course.
-        $instances = $DB->get_records('courselink', ['targetcourseid' => $completedcourseid]);
+        $task = new \mod_courselink\task\sync_user_completion();
+        $task->set_custom_data([
+            'userid'         => $userid,
+            'targetcourseid' => $targetcourseid,
+            'promote'        => true,
+        ]);
+        \core\task\manager::queue_adhoc_task($task, true);
+    }
 
-        if (empty($instances)) {
+    /**
+     * Handle the course_completion_updated event.
+     *
+     * Queues an ad hoc task to demote the affected user's courselink activity
+     * when their target-course completion has been revoked or nulled out.
+     * Returns immediately.
+     *
+     * Note: relateduserid on this event lives in $event->other['relateduserid'],
+     * not on the top-level property (see MDL-44427).
+     *
+     * @param  \core\event\course_completion_updated $event The fired event.
+     * @return void
+     */
+    public static function course_completion_updated(\core\event\course_completion_updated $event): void {
+        $targetcourseid = (int) $event->courseid;
+        $userid = isset($event->other['relateduserid']) ? (int) $event->other['relateduserid'] : 0;
+
+        if (!$userid || !$targetcourseid) {
             return;
         }
 
-        foreach ($instances as $instance) {
-            // Load the course-module record for this instance.
-            $cm = get_coursemodule_from_instance('courselink', $instance->id, $instance->course, false, IGNORE_MISSING);
+        $task = new \mod_courselink\task\sync_user_completion();
+        $task->set_custom_data([
+            'userid'         => $userid,
+            'targetcourseid' => $targetcourseid,
+            'promote'        => false,
+        ]);
+        \core\task\manager::queue_adhoc_task($task, true);
+    }
 
-            if (!$cm) {
-                // Activity may have been deleted; skip cleanly.
-                continue;
-            }
+    /**
+     * Handle the course_reset_ended event.
+     *
+     * Queues an ad hoc task to demote all users whose target-course completion
+     * was cleared by the reset. Returns immediately.
+     *
+     * @param  \core\event\course_reset_ended $event The fired event.
+     * @return void
+     */
+    public static function course_reset(\core\event\course_reset_ended $event): void {
+        $resetcourseid = (int) $event->courseid;
 
-            // Load completion info for the host course.
-            $course     = get_course($instance->course);
-            $completion = new \completion_info($course);
-
-            if (!$completion->is_enabled($cm)) {
-                continue;
-            }
-
-            // Re-evaluate and persist the completion state for this user.
-            // Passing COMPLETION_AND_CONDITION forces a fresh recalculation.
-            $completion->update_state($cm, COMPLETION_UNKNOWN, $userid);
+        if (!$resetcourseid) {
+            return;
         }
+
+        $task = new \mod_courselink\task\sync_course_reset();
+        $task->set_custom_data(['resetcourseid' => $resetcourseid]);
+        \core\task\manager::queue_adhoc_task($task, true);
     }
 }

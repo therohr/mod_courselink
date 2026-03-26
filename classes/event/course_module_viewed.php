@@ -16,6 +16,8 @@
 
 namespace mod_courselink\event;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Event fired when a student views a courselink activity.
  *
@@ -24,11 +26,10 @@ namespace mod_courselink\event;
  * validation automatically.
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class course_module_viewed extends \core\event\course_module_viewed {
-
     /**
      * Initialise required event data properties.
      *

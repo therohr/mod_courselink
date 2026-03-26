@@ -16,6 +16,8 @@
 
 namespace mod_courselink\completion;
 
+defined('MOODLE_INTERNAL') || die();
+
 use core_completion\activity_custom_completion;
 use completion_info;
 use COMPLETION_COMPLETE;
@@ -29,11 +31,10 @@ use COMPLETION_INCOMPLETE;
  * configured target course.
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class custom_completion extends activity_custom_completion {
-
     /**
      * Fetch the completion state for a specific custom rule.
      *
@@ -48,10 +49,20 @@ class custom_completion extends activity_custom_completion {
 
         $this->validate_rule($rule);
 
-        $instance = $this->cm->customdata ?? $this->get_instance();
+        // Cast customdata to array (base class may return an object); use the standard
+        // 'customcompletionrules' structure populated by courselink_get_coursemodule_info().
+        $customdata = (array) $this->cm->customdata;
 
-        // If the teacher has not enabled completion tracking, short-circuit.
-        if (empty($instance->completiontracking)) {
+        // If the teacher has not enabled this completion rule, short-circuit.
+        if (empty($customdata['customcompletionrules']['completiontracking'])) {
+            return COMPLETION_INCOMPLETE;
+        }
+
+        // Prefer cached targetcourseid from customdata; fall back to a DB query.
+        $targetcourseid = $customdata['targetcourseid']
+            ?? $DB->get_field('courselink', 'targetcourseid', ['id' => $this->cm->instance]);
+
+        if (!$targetcourseid) {
             return COMPLETION_INCOMPLETE;
         }
 
@@ -61,7 +72,7 @@ class custom_completion extends activity_custom_completion {
             'userid = :userid AND course = :course AND timecompleted IS NOT NULL',
             [
                 'userid' => $this->userid,
-                'course' => (int) $instance->targetcourseid,
+                'course' => (int) $targetcourseid,
             ]
         );
 
@@ -85,14 +96,18 @@ class custom_completion extends activity_custom_completion {
      * @return array Associative array of rule => description string.
      */
     public function get_custom_rule_descriptions(): array {
-        $instance     = $this->get_instance();
-        $targetcourse = get_course($instance->targetcourseid);
+        $customdata     = (array) $this->cm->customdata;
+        $targetcourseid = $customdata['targetcourseid'] ?? null;
+        $targetcourse   = $targetcourseid ? get_course($targetcourseid) : null;
+        $coursename     = $targetcourse
+            ? $targetcourse->fullname
+            : get_string('targetcoursemissing', 'mod_courselink');
 
         return [
             'completiontracking' => get_string(
                 'completiondetail:targetcourse',
                 'mod_courselink',
-                format_string($targetcourse->fullname)
+                $coursename
             ),
         ];
     }
@@ -106,19 +121,5 @@ class custom_completion extends activity_custom_completion {
      */
     public function get_sort_order(): array {
         return ['completiontracking'];
-    }
-
-    // -----------------------------------------------------------------------
-    // Private helpers
-    // -----------------------------------------------------------------------
-
-    /**
-     * Load and return the activity instance record from the database.
-     *
-     * @return \stdClass The mdl_courselink row.
-     */
-    private function get_instance(): \stdClass {
-        global $DB;
-        return $DB->get_record('courselink', ['id' => $this->cm->instance], '*', MUST_EXIST);
     }
 }

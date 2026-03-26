@@ -18,38 +18,34 @@
  * Language strings for mod_courselink.
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-// Core plugin strings.
-$string['modulename']        = 'Course link';
-$string['modulenameplural']  = 'Course links';
-$string['modulename_help']   = 'The Course link activity displays a link to another course and tracks whether the student has completed it. Downstream activities can be gated on that completion.';
-$string['pluginname']        = 'Course link';
-$string['pluginadministration'] = 'Course link administration';
-
-// Capabilities.
-$string['courselink:addinstance'] = 'Add a course link activity';
-$string['courselink:view']        = 'View a course link activity';
-
-// Settings form.
-$string['targetcourseid']         = 'Target course';
-$string['targetcourseid_help']    = 'Select the course whose completion will be tracked and linked from this activity.';
-$string['completiontracking']     = 'Require completion of target course';
-$string['completiontracking_help'] = 'When enabled, this activity is only marked complete once the student has completed the selected target course. Use the Restrict access settings on downstream activities to gate them on this completion.';
-$string['nocourseselected']       = 'You must select a target course.';
-
-// View page.
-$string['targettcourse']          = 'Linked course';
-$string['gotocourse']             = 'Go to course';
-$string['completionstatus']       = 'Your completion status';
-$string['status_complete']        = 'Complete';
-$string['status_incomplete']      = 'Not yet complete';
-$string['notenrolled']            = 'You are not currently enrolled in the target course. Contact your administrator if you believe this is an error.';
-$string['targetcoursemissing']    = 'The target course could not be found. Please contact your course administrator.';
-
-// Custom completion rule.
 $string['completiondetail:targetcourse'] = 'Complete the linked course: {$a}';
+$string['completionstatus']              = 'Your completion status';
+$string['completiontracking']            = 'Require completion of target course';
+$string['completiontracking_help']       = 'When enabled, this activity is only marked complete once the student has completed the selected target course. Use the Restrict access settings on downstream activities to gate them on this completion.';
+$string['courselink:addinstance']        = 'Add a course link activity';
+$string['courselink:view']               = 'View a course link activity';
+$string['gotocourse']                    = 'Go to course';
+$string['modulename']                    = 'Course link';
+$string['modulename_help']               = 'The Course link activity displays a link to another course and tracks whether the student has completed it. Downstream activities can be gated on that completion.';
+$string['modulenameplural']              = 'Course links';
+$string['nocourseselected']              = 'You must select a target course.';
+$string['notenrolled']                   = 'You are not currently enrolled in the target course. Contact your administrator if you believe this is an error.';
+$string['pluginadministration']          = 'Course link administration';
+$string['pluginname']                    = 'Course link';
+$string['privacy:metadata:core_completion'] =
+    'The Course link activity reads course completion records from the Moodle ' .
+    'core completion subsystem to determine whether a student has completed the ' .
+    'linked course. No personal data is stored by this plugin directly.';
+$string['status_complete']               = 'Complete';
+$string['status_incomplete']             = 'Not yet complete';
+$string['targetcourseid']                = 'Target course';
+$string['targetcourseid_help']           = 'Select the course whose completion will be tracked and linked from this activity.';
+$string['targetcoursemissing']           = 'The target course could not be found. Please contact your course administrator.';
+$string['targetcourse']                  = 'Linked course';
+$string['task_check_completion']         = 'Course link: backfill activity completion';

@@ -17,12 +17,12 @@
 /**
  * Event observer registration for mod_courselink.
  *
- * When a student completes any course, the observer checks whether that
- * course is the target of any courselink activities and, if so, re-evaluates
- * the completion state of those activities for that student in real time.
+ * All observers use internal => false so they run outside the originating
+ * database transaction. This prevents a failure in update_state() from
+ * rolling back the course completion record that triggered the event.
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -30,10 +30,33 @@ defined('MOODLE_INTERNAL') || die();
 
 $observers = [
     [
+        // Fires when a user completes a course. Promotes any courselink
+        // activity that tracks the completed course to complete for that user.
         'eventname'   => '\core\event\course_completed',
         'callback'    => '\mod_courselink\observer::course_completed',
         'includefile' => null,
-        'internal'    => true,
+        'internal'    => false,
+        'priority'    => 0,
+    ],
+    [
+        // Fires when any field on a user's course_completions row is updated.
+        // We use this to detect individual completion revocations (timecompleted
+        // nulled out) and demote the corresponding courselink activity in real time.
+        // Note: relateduserid on this event lives in $event->other['relateduserid'].
+        'eventname'   => '\core\event\course_completion_updated',
+        'callback'    => '\mod_courselink\observer::course_completion_updated',
+        'includefile' => null,
+        'internal'    => false,
+        'priority'    => 0,
+    ],
+    [
+        // Fires after course/reset.php clears completion data. Re-evaluates all
+        // courselink activities pointing at the reset course so users who were
+        // previously complete are correctly demoted back to incomplete.
+        'eventname'   => '\core\event\course_reset_ended',
+        'callback'    => '\mod_courselink\observer::course_reset',
+        'includefile' => null,
+        'internal'    => false,
         'priority'    => 0,
     ],
 ];

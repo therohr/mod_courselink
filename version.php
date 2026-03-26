@@ -18,15 +18,15 @@
  * Plugin version definition.
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-// Minimum Moodle 4.0 — required for activity_custom_completion API.
+// Minimum Moodle 4.5 — required for activity_custom_completion API and Workplace 5.0 compatibility.
 $plugin->component = 'mod_courselink';
-$plugin->version   = 2026031700;
-$plugin->requires  = 2022041900; // Moodle 4.0.
+$plugin->version   = 2026032500;
+$plugin->requires  = 2024100700; // Moodle 4.5.
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.0.0';
+$plugin->release   = '1.0.3';

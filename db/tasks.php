@@ -15,19 +15,28 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Privacy language strings for mod_courselink.
+ * Scheduled task definitions for mod_courselink.
  *
- * Kept in a separate file so Moodle's string loader can find it via
- * the standard privacy subsystem lookup path.
+ * The backfill task runs nightly (02:00) rather than hourly. Real-time
+ * completion updates are handled by the course_completed event observer;
+ * this task is a safety net for completions the observer may have missed
+ * (e.g. bulk imports, direct DB updates on non-SaaS instances).
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$string['privacy:metadata:core_completion'] =
-    'The Course link activity reads course completion records from the Moodle ' .
-    'core completion subsystem to determine whether a student has completed the ' .
-    'linked course. No personal data is stored by this plugin directly.';
+$tasks = [
+    [
+        'classname' => \mod_courselink\task\check_completion::class,
+        'blocking'  => 0,
+        'minute'    => '0',
+        'hour'      => '2',
+        'day'       => '*',
+        'month'     => '*',
+        'dayofweek' => '*',
+    ],
+];

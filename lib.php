@@ -21,15 +21,13 @@
  * lib.php and must be named {modname}_{hookname}.
  *
  * @package   mod_courselink
- * @copyright 2026 Your Name <you@example.com>
+ * @copyright 2026 David Rohr (tidewatercreative.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+defined('MOODLE_INTERNAL') || die(); // phpcs:ignore moodle.Files.MoodleInternal.MoodleInternalNotNeeded
 
-// ---------------------------------------------------------------------------
-// Core CRUD hooks
-// ---------------------------------------------------------------------------
+// Core CRUD hooks.
 
 /**
  * Add a new courselink instance.
@@ -46,7 +44,13 @@ function courselink_add_instance(stdClass $data, $mform = null): int {
     $data->timecreated  = time();
     $data->timemodified = time();
 
-    return $DB->insert_record('courselink', $data);
+    $instanceid = $DB->insert_record('courselink', $data);
+
+    // Backfill completion for any users who have already completed the target
+    // course before this activity was added.
+    courselink_backfill_completion($data->course, $instanceid, (int) $data->targetcourseid);
+
+    return $instanceid;
 }
 
 /**
@@ -62,7 +66,101 @@ function courselink_update_instance(stdClass $data, $mform = null): bool {
     $data->id           = $data->instance;
     $data->timemodified = time();
 
-    return $DB->update_record('courselink', $data);
+    $result = $DB->update_record('courselink', $data);
+
+    // Re-backfill in case the target course was changed.
+    courselink_backfill_completion($data->course, $data->id, (int) $data->targetcourseid);
+
+    return $result;
+}
+
+/**
+ * Update the courselink activity completion state for all host-course users
+ * who have already completed the target course.
+ *
+ * Called after add/update so that pre-existing course completions are not
+ * silently ignored when the activity is first created or the target is changed.
+ *
+ * context_course::instance() is hoisted outside the per-user loop so it is
+ * resolved once per call rather than once per enrolled user.
+ *
+ * @param  int $hostcourseid    ID of the course containing the courselink activity.
+ * @param  int $instanceid      ID of the mdl_courselink row.
+ * @param  int $targetcourseid  ID of the course whose completion is tracked.
+ * @return void
+ */
+function courselink_backfill_completion(int $hostcourseid, int $instanceid, int $targetcourseid): void {
+    global $DB;
+
+    if (!$targetcourseid) {
+        return;
+    }
+
+    $cm = get_coursemodule_from_instance('courselink', $instanceid, $hostcourseid, false, IGNORE_MISSING);
+    if (!$cm) {
+        return;
+    }
+
+    $course     = get_course($hostcourseid);
+    $completion = new completion_info($course);
+    if (!$completion->is_enabled($cm)) {
+        return;
+    }
+
+    // Evaluate users who completed the target course (promote to complete) and
+    // users who already have the courselink marked complete (demote if the target
+    // completion was reset). UNION ensures each user is processed at most once.
+    $userids = $DB->get_fieldset_sql(
+        'SELECT userid FROM {course_completions}
+          WHERE course = :targetcourse AND timecompleted IS NOT NULL
+         UNION
+         SELECT userid FROM {course_modules_completion}
+          WHERE coursemoduleid = :cmid AND completionstate > 0',
+        ['targetcourse' => $targetcourseid, 'cmid' => $cm->id]
+    );
+
+    if (empty($userids)) {
+        return;
+    }
+
+    // Hoist context resolution outside the per-user loop.
+    $hostcontext = context_course::instance($hostcourseid);
+
+    foreach ($userids as $userid) {
+        if (!is_enrolled($hostcontext, (int) $userid, '', true)) {
+            continue;
+        }
+        $completion->update_state($cm, COMPLETION_UNKNOWN, (int) $userid);
+    }
+}
+
+/**
+ * Reset user-generated activity data for a courselink instance.
+ *
+ * Called by Moodle's course-reset UI. courselink has no user-generated content
+ * (no submissions, no grades); the only user state is activity completion, which
+ * is handled by Moodle core's completion-reset path. We declare support here so
+ * the reset UI does not show an "unsupported" warning for this module.
+ *
+ * @param  stdClass $data  Reset form data including the course id.
+ * @return array           Status array (empty = nothing to report).
+ */
+function courselink_reset_userdata(stdClass $data): array {
+    return [];
+}
+
+/**
+ * Declare reset-form elements for courselink.
+ *
+ * courselink stores no user-generated content, so nothing is added to the
+ * reset form. Declaring this function prevents Moodle from reporting the
+ * module as not supporting course reset.
+ *
+ * @param  MoodleQuickForm $mform The reset form.
+ * @return void
+ */
+function courselink_reset_course_form_definition(&$mform): void {
+    // No user data to expose in the reset form.
 }
 
 /**
@@ -83,9 +181,7 @@ function courselink_delete_instance(int $id): bool {
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Feature support flags
-// ---------------------------------------------------------------------------
+// Feature support flags.
 
 /**
  * Declare which Moodle features this module supports.
@@ -96,6 +192,8 @@ function courselink_delete_instance(int $id): bool {
 function courselink_supports(string $feature) {
     switch ($feature) {
         case FEATURE_MOD_INTRO:
+            return true;
+        case FEATURE_SHOW_DESCRIPTION:
             return true;
         case FEATURE_COMPLETION_TRACKS_VIEWS:
             return false;
@@ -112,9 +210,59 @@ function courselink_supports(string $feature) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Completion
-// ---------------------------------------------------------------------------
+// Course module info (customdata, direct link, description on course page).
+
+/**
+ * Return information about this activity instance for the course module cache.
+ *
+ * Sets the customcompletionrules key (required by activity_custom_completion base
+ * class) and overrides the activity link so the course-page name goes directly
+ * to the target course rather than to view.php.
+ *
+ * @param  stdClass $coursemodule Row from mdl_course_modules.
+ * @return cached_cm_info        Populated info object.
+ */
+function courselink_get_coursemodule_info($coursemodule) {
+    global $DB;
+
+    $instance = $DB->get_record(
+        'courselink',
+        ['id' => $coursemodule->instance],
+        'id, name, intro, introformat, targetcourseid, completiontracking'
+    );
+    if (!$instance) {
+        return null;
+    }
+
+    $info = new cached_cm_info();
+    $info->name = $instance->name;
+
+    // Populate customdata so the base activity_custom_completion::get_details()
+    // can find the active rules and report them in the completion dropdown.
+    $info->customdata = [
+        'customcompletionrules' => [
+            'completiontracking' => (int) $instance->completiontracking,
+        ],
+        'targetcourseid' => (int) $instance->targetcourseid,
+    ];
+
+    // Show description on the course page when the teacher has enabled it.
+    if ($coursemodule->showdescription) {
+        $info->content = format_module_intro('courselink', $instance, $coursemodule->id, false);
+    }
+
+    // Direct-link: clicking the activity name on the course page opens the
+    // target course in a new tab — no intermediate view page required.
+    // Use out(true) for the HTML-escaped URL, matching cached_cm_info expectations.
+    if (!empty($instance->targetcourseid)) {
+        $fullurl = (new moodle_url('/course/view.php', ['id' => $instance->targetcourseid]))->out(true);
+        $info->onclick = "window.open('$fullurl', '_blank'); return false;";
+    }
+
+    return $info;
+}
+
+// Completion.
 
 /**
  * Return the completion rule descriptions shown in the activity completion UI.
@@ -143,7 +291,7 @@ function courselink_get_completion_active_rule_descriptions(stdClass $coursemodu
     $descriptions['completiontracking'] = get_string(
         'completiondetail:targetcourse',
         'mod_courselink',
-        format_string($targetcourse->fullname)
+        $targetcourse->fullname
     );
 
     return $descriptions;
