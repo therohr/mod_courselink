@@ -1,0 +1,55 @@
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.AppleDouble
+.LSOverride
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.php-cs-fixer.cache
+.phpstan.cache
+
+# PHP dependency files (if composer is used)
+vendor/
+composer.lock
+
+# Node dependency files (if npm is used)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build and cache files
+build/
+dist/
+coverage/
+.phpunit.result.cache
+
+# Local development files
+.env
+.env.local
+*.local.php
+config.php
+
+# Claude Code local settings (personal overrides — not shared)
+.claude/settings.local.json
+
+# Temporary and log files
+*.log
+*.tmp
+*.cache
+temp/
+
+# Backup files
+*.bak
+*.backup
+
+# PHP Storm
+.phpstorm.meta.php
+_ide_helper.php

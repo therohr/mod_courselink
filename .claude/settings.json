@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "postToolUse": [
+      {
+        "tools": ["Write", "Edit"],
+        "command": "if echo \"$CC_TOOL_INPUT\" | grep -q 'version.php'; then php -l \"$(echo $CC_TOOL_INPUT | jq -r '.file_path')\"; fi"
+      }
+    ]
+  }
+}
