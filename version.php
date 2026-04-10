@@ -26,7 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 // Minimum Moodle 4.5 — required for activity_custom_completion API and Workplace 5.0 compatibility.
 $plugin->component = 'mod_courselink';
-$plugin->version   = 2026041002;
+$plugin->version   = 2026041003;
 $plugin->requires  = 2024100700; // Moodle 4.5.
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.2.0';
+$plugin->release   = '1.2.1';

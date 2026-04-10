@@ -77,7 +77,7 @@ class restore_courselink_activity_structure_step extends restore_activity_struct
         $instanceid = $this->task->get_activityid();
         $instance = $DB->get_record('courselink', ['id' => $instanceid], 'course, targetcourseid');
         if ($instance && $instance->targetcourseid) {
-            courselink_queue_backfill(
+            courselink_backfill_completion(
                 (int) $instance->course,
                 (int) $instanceid,
                 (int) $instance->targetcourseid

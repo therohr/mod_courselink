@@ -2,6 +2,14 @@
 
 All notable changes to mod_courselink will be documented in this file.
 
+## [1.2.1] - 2026-04-10
+
+### Fixed
+- Activity duplication now works correctly via Moodle's backup/restore system
+- Enabled `FEATURE_BACKUP_MOODLE2` so the "Duplicate" action in the course page context menu functions properly
+- Fixed `courselink_queue_backfill()` call in restore step (renamed to `courselink_backfill_completion()`)
+- Removed dead `courselink_duplicate_activity()` stub that was never called by Moodle core
+
 ## [1.2.0] - 2026-04-10
 
 ### Added
