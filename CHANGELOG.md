@@ -2,7 +2,7 @@
 
 All notable changes to mod_courselink will be documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-04-10
 
 ### Added
 - Activity duplication support: Course Link activities can now be duplicated when duplicating courses
