@@ -181,6 +181,44 @@ function courselink_delete_instance(int $id): bool {
     return true;
 }
 
+/**
+ * Duplicate a courselink activity when a course is duplicated.
+ *
+ * Called by Moodle core when duplicating a course. Creates a new courselink
+ * instance with the same target course and completion settings as the original.
+ *
+ * @param  stdClass $coursemodule   The original course module to duplicate.
+ * @param  stdClass $newcoursemodule The new course module (with updated course id).
+ * @return stdClass                 The new courselink instance.
+ */
+function courselink_duplicate_activity(stdClass $coursemodule, stdClass $newcoursemodule): stdClass {
+    global $DB;
+
+    $instance = $DB->get_record('courselink', ['id' => $coursemodule->instance]);
+    if (!$instance) {
+        return null;
+    }
+
+    // Create a new instance with the same settings.
+    $newinstance = (object) [
+        'course' => $newcoursemodule->course,
+        'name' => $instance->name,
+        'intro' => $instance->intro,
+        'introformat' => $instance->introformat,
+        'targetcourseid' => $instance->targetcourseid,
+        'completiontracking' => $instance->completiontracking,
+        'timecreated' => time(),
+        'timemodified' => time(),
+    ];
+
+    $newinstance->id = $DB->insert_record('courselink', $newinstance);
+
+    // Backfill completion for users who have already completed the target course.
+    courselink_backfill_completion($newcoursemodule->course, $newinstance->id, (int) $instance->targetcourseid);
+
+    return $newinstance;
+}
+
 // Feature support flags.
 
 /**
