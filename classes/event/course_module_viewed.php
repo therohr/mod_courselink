@@ -16,8 +16,6 @@
 
 namespace mod_courselink\event;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Event fired when a student views a courselink activity.
  *

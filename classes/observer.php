@@ -16,8 +16,6 @@
 
 namespace mod_courselink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Event observer for mod_courselink.
  *

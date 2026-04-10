@@ -16,8 +16,6 @@
 
 namespace mod_courselink\task;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Ad hoc task: re-evaluate courselink activity completion for one user.
  *

@@ -16,8 +16,6 @@
 
 namespace mod_courselink\completion;
 
-defined('MOODLE_INTERNAL') || die();
-
 use core_completion\activity_custom_completion;
 use completion_info;
 use COMPLETION_COMPLETE;

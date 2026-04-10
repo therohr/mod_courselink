@@ -16,8 +16,6 @@
 
 namespace mod_courselink\task;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Scheduled task: backfill courselink activity completion.
  *

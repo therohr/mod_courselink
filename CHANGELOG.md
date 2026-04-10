@@ -2,6 +2,13 @@
 
 All notable changes to mod_courselink will be documented in this file.
 
+## [1.2.2] - 2026-04-10
+
+### Fixed
+- Removed unnecessary `defined('MOODLE_INTERNAL') || die()` guards from all namespaced class files in `classes/`
+- Namespaced autoloaded files do not require this check (flagged by Moodle code checker `MoodleInternalSniff`)
+- Zero errors, zero warnings from Moodle code checker
+
 ## [1.2.1] - 2026-04-10
 
 ### Fixed
