@@ -241,6 +241,10 @@ function courselink_supports(string $feature) {
             return false;
         case FEATURE_BACKUP_MOODLE2:
             return false; // Backup/restore support can be added in a later release.
+        case FEATURE_GROUPS:
+            return true;
+        case FEATURE_GROUPINGS:
+            return true;
         case FEATURE_MOD_PURPOSE:
             return MOD_PURPOSE_CONTENT;
         default:

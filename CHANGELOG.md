@@ -2,6 +2,14 @@
 
 All notable changes to mod_courselink will be documented in this file.
 
+## [1.2.0] - 2026-04-10
+
+### Added
+- Group support: Course Link activities now support Moodle groups and groupings
+- Declared `FEATURE_GROUPS` and `FEATURE_GROUPINGS` so teachers can restrict activity visibility by group
+- Group mode selector now appears in the activity settings form and course page context menu
+- Groupings support allows fine-grained access control when using groupings
+
 ## [1.1.0] - 2026-04-10
 
 ### Added
